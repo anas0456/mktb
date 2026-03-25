@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مكتب عقارات - بيع وشراء</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+    <script src="firebaseconfig.js"></script>
+    
+    <!-- Initialize Firebase -->
+    <script>
+        // Initialize Firebase using config from firebaseconfig.js
+        if (window.firebaseConfig) {
+            try {
+                firebase.initializeApp(window.firebaseConfig);
+                window.db = firebase.firestore();
+            } catch(e) {
+                console.log('Firebase error:', e);
+            }
+        }
+    </script>
+</head>
+<body>
+    <!-- Notification Container -->
+    <div id="notificationContainer"></div>
+    
+    <!-- Header -->
+    <header>
+        <div class="logo">
+            <h1>مكتب عقارات حكيم والشاش</h1>
+            <p style="color: #888; font-size: 0.9rem;"></p>
+        </div>
+        <nav>
+            <button onclick="showSection('properties')">العقارات</button>
+            <button onclick="showSection('offers')">العروض</button>
+            <button onclick="showLoginModal()" id="loginBtn">دخول</button>
+            <button onclick="logout()" id="logoutBtn" style="display: none;">تسجيل الخروج</button>
+        </nav>
+    </header>
+
+    <!-- Login Modal -->
+    <div id="loginModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeLoginModal()">&times;</span>
+            <h2> تسجيل دخول الأدمن</h2>
+            <form id="loginForm">
+                <input type="text" id="username" placeholder="👤 اسم المستخدم" required>
+                <input type="password" id="password" placeholder="كلمة المرور" required>
+                <button type="submit">دخول</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Admin Panel -->
+    <div id="adminPanel" class="admin-panel" style="display: none;">
+        <h2>لوحة تحكم الأدمن</h2>
+        <div class="admin-tabs">
+            <button onclick="showAdminTab('addProperty')">➕ إضافة عقار</button>
+            <button onclick="showAdminTab('addOffer')">إضافة عرض</button>
+            <button onclick="showAdminTab('manageProperties')">إدارة العقارات</button>
+        </div>
+
+        <!-- Add Property Tab -->
+        <div id="addProperty" class="admin-tab">
+            <h3>إضافة عقار جديد</h3>
+            <form id="propertyForm">
+                <select id="propertyType" required>
+                    <option value="">اختر نوع العقار</option>
+                    <option value="house">بيت</option>
+                    <option value="apartment">شقة</option>
+                    <option value="villa">فيلا</option>
+                    <option value="farm">مزرعة</option>
+                    <option value="land">أرض</option>
+                    <option value="shop">محل</option>
+                </select>
+                <select id="propertyStatus" required>
+                    <option value="available">متاح للبيع</option>
+                    <option value="reserved">محجوز</option>
+                    <option value="sold">مباع</option>
+                    <option value="under_construction">قيد الإنشاء</option>
+                </select>
+                <input type="text" id="propertyTitle" placeholder="عنوان العقار" required>
+                <input type="text" id="propertyStreet" placeholder="الشارع">
+                <textarea id="propertyDesc" placeholder="وصف العقار"></textarea>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <input type="number" id="propertyPriceUSD" placeholder="السعر ($)">
+                    <input type="number" id="propertyPriceSYP" placeholder="السعر (ل.س)">
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <input type="number" id="propertyArea" placeholder="المساحة (م²)">
+                    <input type="number" id="propertyRooms" placeholder="عدد الغرف">
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <input type="text" id="propertyOwnership" placeholder="الملكية (ملك/إيجار/تجاري)">
+                    <input type="text" id="propertyDirection" placeholder="الاتجاه (شمال/جنوب/شرق/غرب)">
+                </div>
+                <label for="propertyImage" style="display: block; margin: 10px 0; color: #888;">صور العقار (اختياري):</label>
+                <label class="file-upload-btn">
+                    <span>اختر صور</span>
+                    <input type="file" id="propertyImage" accept="image/*" multiple style="display: none;" onchange="previewImages(this, 'propertyPreview')">
+                </label>
+                <div id="propertyPreview" class="image-preview"></div>
+                
+                <label for="propertyVideo" style="display: block; margin: 10px 0; color: #888;">فيديوهات العقار (اختياري) - يمكنك اختيار عدة فيديوهات:</label>
+                <label class="file-upload-btn">
+                    <span>اختر فيديوهات</span>
+                    <input type="file" id="propertyVideo" accept="video/*" multiple style="display: none;" onchange="previewVideos(this, 'propertyVideoPreview')">
+                </label>
+                <div id="propertyVideoPreview" class="video-preview"></div>
+                
+                <button type="submit">إضافة العقار</button>
+            </form>
+        </div>
+
+        <!-- Add Offer Tab -->
+        <div id="addOffer" class="admin-tab" style="display: none;">
+            <h3>إضافة عرض خاص</h3>
+            <form id="offerForm">
+                <input type="text" id="offerTitle" placeholder="عنوان العرض" required>
+                <textarea id="offerDesc" placeholder="وصف العرض" required></textarea>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <input type="number" id="offerPriceUSD" placeholder="السعر ($)">
+                    <input type="number" id="offerPriceSYP" placeholder="السعر (ل.س)">
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <input type="number" id="offerOldPriceUSD" placeholder="السعر القديم ($)">
+                    <input type="number" id="offerOldPriceSYP" placeholder="السعر القديم (ل.س)">
+                </div>
+                <label for="offerImage" class="file-upload-btn">
+                    <span>اختر صور</span>
+                    <input type="file" id="offerImage" accept="image/*" multiple style="display: none;" onchange="previewImages(this, 'offerPreview')">
+                </label>
+                <div id="offerPreview" class="image-preview"></div>
+                <button type="submit">إضافة العرض</button>
+            </form>
+        </div>
+
+        <!-- Manage Properties Tab -->
+        <div id="manageProperties" class="admin-tab" style="display: none;">
+            <h3>إدارة العقارات</h3>
+            <div id="propertiesList"></div>
+            <h3>إدارة العروض</h3>
+            <div id="offersList"></div>
+        </div>
+
+        </div>
+    </div>
+
+    <!-- Properties Section -->
+    <section id="properties" class="content-section">
+        <h2>العقارات المتاحة</h2>
+        <div id="propertiesGrid" class="grid"></div>
+    </section>
+
+    <!-- Offers Section -->
+    <section id="offers" class="content-section" style="display: none;">
+        <h2>العروض الخاصة</h2>
+        <div id="offersGrid" class="grid"></div>
+    </section>
+
+    <!-- Contact Section -->
+    <section id="contact" class="content-section" style="display: none;">
+        <h2>📞 اتصل بنا واطلب عقارك</h2>
+        <form id="contactForm">
+            <input type="text" id="contactName" placeholder="الاسم" required>
+            <input type="tel" id="contactPhone" placeholder="رقم الهاتف" required>
+            <select id="contactType">
+                <option value="buy">شراء</option>
+                <option value="rent">إيجار</option>
+                <option value="sell">بيع</option>
+                <option value="consult">استشارة</option>
+            </select>
+            <textarea id="contactMessage" placeholder="اكتب طلبك أو استفسارك..." required></textarea>
+            <button type="submit">إرسال الطلب</button>
+        </form>
+    </section>
+
+    <!-- Property Detail Modal -->
+    <div id="propertyModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 800px; margin: 10% auto; background: #1a1a1a; border-radius: 15px; padding: 20px; position: relative;">
+            <span class="close-modal" onclick="closePropertyModal()" style="position: absolute; top: 15px; right: 20px; font-size: 30px; cursor: pointer; color: #888;">&times;</span>
+            <div id="propertyModalContent"></div>
+        </div>
+    </div>
+
+    <!-- Image Lightbox Modal -->
+    <div id="lightboxModal" class="modal" style="display: none; background: rgba(0,0,0,0.95);">
+        <span class="close-modal" onclick="closeLightbox()" style="position: absolute; top: 20px; right: 30px; font-size: 40px; cursor: pointer; color: #fff; z-index: 10000;">&times;</span>
+        <img id="lightboxImage" src="" style="max-width: 90%; max-height: 90%; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); border-radius: 10px;">
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        <p> مكتب عقارات حكيم والشاش - إدارة أبو رشيد</p>
+        <p>📞 للاستفسار: 0988295085 | 📧 يوسف الشاش</p>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>
